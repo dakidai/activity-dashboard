@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动数据可视化看板</title>
+    <script src="echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .compare-section {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .activity-item {
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .activity-item:hover {
+            background: #eef0f5;
+            border-color: #667eea;
+        }
+
+        .activity-item.selected {
+            background: #e8eaff;
+            border-color: #667eea;
+        }
+
+        .activity-item .name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .activity-item .item-main {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .activity-item .item-main input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .activity-item .meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 6px;
+            padding-left: 24px;
+        }
+
+        .activity-item .type {
+            font-size: 11px;
+            color: #888;
+            background: #e8e8e8;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .activity-item .actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .activity-item:hover .actions {
+            opacity: 1;
+        }
+
+        .activity-item .actions button {
+            border: none;
+            border-radius: 4px;
+            padding: 3px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .activity-item .actions .edit-btn {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .activity-item .actions .delete-btn {
+            background: #ef4444;
+            color: white;
+        }
+
+        .tag-btn {
+            display: inline-block;
+            padding: 4px 10px;
+            margin: 4px;
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: white;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .tag-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .tag-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-top: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        .tag-group {
+            margin-bottom: 16px;
+        }
+
+        .tag-group-title {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            display: block;
+        }
+
+        .modal-content {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 1001;
+        }
+
+        .modal-content.show {
+            display: block;
+        }
+
+        .modal-content h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .form-actions .btn {
+            flex: 1;
+            margin: 0;
+        }
+
+        /* Toast 提示 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* 对比结果 */
+        .compare-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .compare-box {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .compare-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            border-left: 4px solid #667eea;
+        }
+
+        .compare-card .header {
+            background: transparent;
+            color: #333;
+            padding: 0;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .compare-card .header span {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+
+        .compare-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .compare-row:last-child {
+            border-bottom: none;
+        }
+
+        .compare-row .label {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .compare-row .values {
+            font-size: 13px;
+            color: #333;
+        }
+
+        .compare-row .change {
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 70px;
+            text-align: right;
+        }
+
+        .compare-row .change.positive {
+            color: #22c55e;
+        }
+
+        .compare-row .change.negative {
+            color: #ef4444;
+        }
+
+        .copy-hint {
+            font-size: 12px;
+            color: #888;
+            text-align: right;
+            margin-top: 12px;
+        }
+
+        /* 数据标签开关 */
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #666;
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        .toggle-label input {
+            cursor: pointer;
+        }
+
+        /* 无数据提示 */
+        .no-data-hint {
+            text-align: center;
+            color: #999;
+            padding: 60px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 活动数据可视化看板</h1>
+        <p>点击活动名称可查看详情/编辑 | 最后一个勾选的活动为参考基准</p>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="section-title">📌 历史活动</div>
+            <div id="activityList"></div>
+
+            <div class="compare-section">
+                <button class="btn" id="btnCompare">🔍 对比选中活动</button>
+                <button class="btn btn-secondary" id="btnAdd">➕ 新增活动</button>
+                <button class="btn btn-danger" id="btnClear">🗑️ 清除选择</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div id="compareResult"></div>
+
+            <!-- 图表1: 绝对值数据 -->
+            <div class="chart-card">
+                <div class="chart-title">
+                    📊 绝对值数据对比
+                    <label class="toggle-label">
+                        <input type="checkbox" id="showLabel1" checked> 显示数值标签
+                    </label>
+                </div>
+                <div class="tag-group">
+                    <div class="tag-group-title">指标筛选：</div>
+                    <span class="tag-btn active" data-key="views" data-chart="1">活动页浏览</span>
+                    <span class="tag-btn active" data-key="clicks" data-chart="1">活动页点击</span>
+                    <span class="tag-btn active" data-key="shareBtn" data-chart="1">分享按钮</span>
+                    <span class="tag-btn active" data-key="sharePlatform" data-chart="1">分享平台</span>
+                    <span class="tag-btn active" data-key="webViews" data-chart="1">web页浏览</span>
+                    <span class="tag-btn active" data-key="webClicks" data-chart="1">web页点击</span>
+                    <span class="tag-btn active" data-key="newUsers" data-chart="1">拉新人数</span>
+                    <span class="tag-btn active" data-key="recall" data-chart="1">召回人数</span>
+                </div>
+                <div class="chart-container" id="chart1"></div>
+            </div>
+
+            <!-- 图表2: 率值数据 -->
+            <div class="chart-card">
+                <div class="chart-title">
+                    📈 率值数据对比
+                    <label class="toggle-label">
+                        <input type="checkbox" id="showLabel2" checked> 显示数值标签
+                    </label>
+                </div>
+                <div class="tag-group">
+                    <div class="tag-group-title">指标筛选：</div>
+                    <span class="tag-btn active" data-key="viewClickRate" data-chart="2">点击率</span>
+                    <span class="tag-btn active" data-key="viewShareRate" data-chart="2">分享率</span>
+                    <span class="tag-btn active" data-key="sharePlatformRate" data-chart="2">平台率</span>
+                    <span class="tag-btn active" data-key="shareRate" data-chart="2">分享完成率</span>
+                    <span class="tag-btn active" data-key="webViewRate" data-chart="2">web浏览率</span>
+                    <span class="tag-btn active" data-key="webClickRate" data-chart="2">web点击率</span>
+                </div>
+                <div class="chart-container" id="chart2"></div>
+            </div>
+
+            <!-- 图表3: 雷达图 -->
+            <div class="chart-card">
+                <div class="chart-title">
+                    🎯 综合对比（雷达图）
+                    <label class="toggle-label">
+                        <input type="checkbox" id="showLabel3" checked> 显示数值标签
+                    </label>
+                </div>
+                <div class="chart-container" id="chart3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 表单弹窗 -->
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-content" id="formModal">
+        <h2 id="formTitle">➕ 新增活动数据</h2>
+        <div class="form-row">
+            <div class="form-group">
+                <label>活动名称</label>
+                <input type="text" id="formName" placeholder="如：26年春节">
+            </div>
+            <div class="form-group">
+                <label>活动类型</label>
+                <input type="text" id="formType" placeholder="如：节假日">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>活动内容</label>
+            <input type="text" id="formContent" placeholder="如：限免书单+分享激励">
+        </div>
+        <div class="form-group">
+            <label>活动天数</label>
+            <input type="number" id="formDays" placeholder="天数">
+        </div>
+        <div class="section-title" style="margin-top: 16px;">绝对值数据</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>活动页总浏览</label>
+                <input type="number" id="formViews">
+            </div>
+            <div class="form-group">
+                <label>活动页总点击</label>
+                <input type="number" id="formClicks">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>分享按钮点击</label>
+                <input type="number" id="formShareBtn">
+            </div>
+            <div class="form-group">
+                <label>分享平台点击</label>
+                <input type="number" id="formSharePlatform">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>web页浏览</label>
+                <input type="number" id="formWebViews">
+            </div>
+            <div class="form-group">
+                <label>web页点击</label>
+                <input type="number" id="formWebClicks">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>拉新人数</label>
+                <input type="number" id="formNewUsers">
+            </div>
+            <div class="form-group">
+                <label>召回人数</label>
+                <input type="number" id="formRecall">
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" id="btnCancel">取消</button>
+            <button class="btn" id="btnSubmit">确认添加</button>
+        </div>
+    </div>
+
+    <script>
+        // 默认历史活动数据
+        const defaultActivities = [
+            {
+                name: "25年国庆书单",
+                type: "节假日",
+                content: "限免书单+分享激励",
+                days: 8,
+                views: 182688,
+                clicks: 150797,
+                viewClickRate: 0.825,
+                shareBtn: 25701,
+                viewShareRate: 0.141,
+                sharePlatform: 16535,
+                sharePlatformRate: 0.643,
+                shareRate: 0.091,
+                webViews: 10749,
+                webViewRate: 0.65,
+                webClicks: 8451,
+                webClickRate: 0.786,
+                newUsers: 94,
+                recall: 261
+            },
+            {
+                name: "25年宪法日",
+                type: "公益节点",
+                content: "限免书单+知识科普",
+                days: 3,
+                views: 51769,
+                clicks: 35663,
+                viewClickRate: 0.689,
+                shareBtn: 22200,
+                viewShareRate: 0.429,
+                sharePlatform: 10689,
+                sharePlatformRate: 0.481,
+                shareRate: 0.206,
+                webViews: 4186,
+                webViewRate: 0.392,
+                webClicks: 3079,
+                webClickRate: 0.736,
+                newUsers: 10,
+                recall: 43
+            },
+            {
+                name: "25年元旦",
+                type: "节假日",
+                content: "知识科普+分享激励",
+                days: 7,
+                views: 128437,
+                clicks: 72298,
+                viewClickRate: 0.563,
+                shareBtn: 51182,
+                viewShareRate: 0.398,
+                sharePlatform: 33070,
+                sharePlatformRate: 0.646,
+                shareRate: 0.257,
+                webViews: 5507,
+                webViewRate: 0.167,
+                webClicks: 3250,
+                webClickRate: 0.59,
+                newUsers: 23,
+                recall: 51
+            },
+            {
+                name: "25年苏轼诞辰",
+                type: "名人诞辰",
+                content: "知识科普",
+                days: 3,
+                views: 62683,
+                clicks: 37890,
+                viewClickRate: 0.604,
+                shareBtn: 19603,
+                viewShareRate: 0.313,
+                sharePlatform: 8630,
+                sharePlatformRate: 0.44,
+                shareRate: 0.138,
+                webViews: 2783,
+                webViewRate: 0.322,
+                webClicks: 1368,
+                webClickRate: 0.492,
+                newUsers: 5,
+                recall: 28
+            },
+            {
+                name: "26年春节",
+                type: "节假日",
+                content: "大咖祝福+分享激励",
+                days: 8,
+                views: 72432,
+                clicks: 44937,
+                viewClickRate: 0.62,
+                shareBtn: 28107,
+                viewShareRate: 0.388,
+                sharePlatform: 12313,
+                sharePlatformRate: 0.438,
+                shareRate: 0.17,
+                webViews: 3048,
+                webViewRate: 0.248,
+                webClicks: 1964,
+                webClickRate: 0.644,
+                newUsers: 16,
+                recall: 44
+            }
+        ];
+
+        // 从 localStorage 加载数据
+        function loadActivities() {
+            const saved = localStorage.getItem('activityData');
+            if (saved) {
+                return JSON.parse(saved);
+            }
+            return JSON.parse(JSON.stringify(defaultActivities));
+        }
+
+        // 保存数据到 localStorage
+        function saveActivities() {
+            localStorage.setItem('activityData', JSON.stringify(activities));
+        }
+
+        let activities = loadActivities();
+        let selectedActivities = new Set();
+        let chart1, chart2, chart3;
+        let editingIndex = -1;
+
+        // DOM 元素
+        const activityList = document.getElementById('activityList');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const formModal = document.getElementById('formModal');
+
+        // 初始化
+        function init() {
+            renderActivityList();
+            initCharts();
+            updateCharts();
+            bindEvents();
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            document.getElementById('btnAdd').addEventListener('click', openAddForm);
+            document.getElementById('btnCompare').addEventListener('click', compareSelected);
+            document.getElementById('btnClear').addEventListener('click', clearSelection);
+            document.getElementById('btnCancel').addEventListener('click', closeForm);
+            document.getElementById('btnSubmit').addEventListener('click', submitForm);
+            modalOverlay.addEventListener('click', closeForm);
+
+            // 标签按钮
+            document.querySelectorAll('.tag-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    updateCharts();
+                });
+            });
+
+            // 数值标签开关
+            document.getElementById('showLabel1').addEventListener('change', updateCharts);
+            document.getElementById('showLabel2').addEventListener('change', updateCharts);
+            document.getElementById('showLabel3').addEventListener('change', updateCharts);
+        }
+
+        // 渲染活动列表
+        function renderActivityList() {
+            activityList.innerHTML = activities.map((a, i) => `
+                <div class="activity-item ${selectedActivities.has(i) ? 'selected' : ''}" data-index="${i}">
+                    <div class="item-main">
+                        <input type="checkbox" id="act${i}" data-index="${i}" ${selectedActivities.has(i) ? 'checked' : ''}>
+                        <div class="name" onclick="openEditForm(${i})">${a.name}</div>
+                    </div>
+                    <div class="meta">
+                        <span class="type">${a.type}</span>
+                        <div class="actions">
+                            <button class="edit-btn" onclick="event.stopPropagation(); openEditForm(${i})">编辑</button>
+                            <button class="delete-btn" onclick="event.stopPropagation(); deleteActivity(${i})">删除</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // 复选框事件
+            activityList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', function(e) {
+                    e.stopPropagation();
+                    const idx = parseInt(this.dataset.index);
+                    if (this.checked) {
+                        selectedActivities.add(idx);
+                    } else {
+                        selectedActivities.delete(idx);
+                    }
+                    renderActivityList();
+                    updateCharts();
+                });
+            });
+
+            // 点击整行选中（但点击名称不触发选中）
+            activityList.querySelectorAll('.activity-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.classList.contains('name')) return;
+                    const idx = parseInt(this.dataset.index);
+                    if (selectedActivities.has(idx)) {
+                        selectedActivities.delete(idx);
+                    } else {
+                        selectedActivities.add(idx);
+                    }
+                    renderActivityList();
+                    updateCharts();
+                });
+            });
+        }
+
+        // 删除活动
+        function deleteActivity(index) {
+            if (confirm('确定要删除这个活动吗？')) {
+                activities.splice(index, 1);
+                selectedActivities.delete(index);
+                // 重新索引选中项
+                const newSelected = new Set();
+                selectedActivities.forEach(i => {
+                    if (i > index) newSelected.add(i - 1);
+                    else if (i < index) newSelected.add(i);
+                });
+                selectedActivities = newSelected;
+                saveActivities();
+                renderActivityList();
+                updateCharts();
+                showToast('删除成功！');
+            }
+        }
+
+        // 打开编辑表单
+        function openEditForm(index) {
+            editingIndex = index;
+            const a = activities[index];
+            document.getElementById('formTitle').textContent = '✏️ 编辑活动数据';
+            document.getElementById('formName').value = a.name;
+            document.getElementById('formType').value = a.type;
+            document.getElementById('formContent').value = a.content;
+            document.getElementById('formDays').value = a.days;
+            document.getElementById('formViews').value = a.views;
+            document.getElementById('formClicks').value = a.clicks;
+            document.getElementById('formShareBtn').value = a.shareBtn;
+            document.getElementById('formSharePlatform').value = a.sharePlatform;
+            document.getElementById('formWebViews').value = a.webViews;
+            document.getElementById('formWebClicks').value = a.webClicks;
+            document.getElementById('formNewUsers').value = a.newUsers;
+            document.getElementById('formRecall').value = a.recall;
+            document.getElementById('btnSubmit').textContent = '保存修改';
+            openAddForm();
+        }
+
+        // 初始化图表
+        function initCharts() {
+            chart1 = echarts.init(document.getElementById('chart1'));
+            chart2 = echarts.init(document.getElementById('chart2'));
+            chart3 = echarts.init(document.getElementById('chart3'));
+
+            window.addEventListener('resize', () => {
+                chart1.resize();
+                chart2.resize();
+                chart3.resize();
+            });
+        }
+
+        // 更新图表
+        function updateCharts() {
+            const selected = Array.from(selectedActivities);
+            const data = selected.length > 0
+                ? selected.map(i => activities[i])
+                : activities.slice(0, 2);
+
+            updateChart1(data);
+            updateChart2(data);
+            updateChart3(data);
+        }
+
+        // 获取数值标签设置
+        function getShowLabel(chartNum) {
+            return document.getElementById(`showLabel${chartNum}`).checked;
+        }
+
+        // 图表1: 绝对值数据
+        function updateChart1(data) {
+            const keys = ['views', 'clicks', 'shareBtn', 'sharePlatform', 'webViews', 'webClicks', 'newUsers', 'recall'];
+            const labels = ['活动页浏览', '活动页点击', '分享按钮', '分享平台', 'web页浏览', 'web页点击', '拉新', '召回'];
+
+            const activeTags = document.querySelectorAll('.tag-btn[data-chart="1"].active');
+            const activeKeys = Array.from(activeTags).map(t => t.dataset.key);
+
+            chart1.setOption({
+                tooltip: { trigger: 'axis' },
+                legend: { data: data.map(a => a.name), bottom: 0 },
+                xAxis: { type: 'category', data: labels.filter((_, i) => activeKeys.includes(keys[i])), axisLabel: { rotate: 15 } },
+                yAxis: { type: 'value' },
+                series: data.map(a => ({
+                    name: a.name,
+                    type: 'bar',
+                    data: activeKeys.map(k => a[k]),
+                    label: { show: getShowLabel(1), position: 'top', fontSize: 10 }
+                }))
+            });
+        }
+
+        // 图表2: 率值数据
+        function updateChart2(data) {
+            const keys = ['viewClickRate', 'viewShareRate', 'sharePlatformRate', 'shareRate', 'webViewRate', 'webClickRate'];
+            const labels = ['点击率', '分享率', '平台率', '分享完成率', 'web浏览率', 'web点击率'];
+
+            const activeTags = document.querySelectorAll('.tag-btn[data-chart="2"].active');
+            const activeKeys = Array.from(activeTags).map(t => t.dataset.key);
+
+            chart2.setOption({
+                tooltip: { trigger: 'axis', formatter: function(params) { return params.map(p => p.name + ': ' + (p.value * 100).toFixed(1) + '%').join('<br/>'); } },
+                legend: { data: data.map(a => a.name), bottom: 0 },
+                xAxis: { type: 'category', data: labels.filter((_, i) => activeKeys.includes(keys[i])), axisLabel: { rotate: 15 } },
+                yAxis: { type: 'value', axisLabel: { formatter: v => (v * 100).toFixed(0) + '%' } },
+                series: data.map(a => ({
+                    name: a.name,
+                    type: 'line',
+                    data: activeKeys.map(k => a[k]),
+                    smooth: true,
+                    label: { show: getShowLabel(2), position: 'top', formatter: v => (v.value * 100).toFixed(1) + '%', fontSize: 10 }
+                }))
+            });
+        }
+
+        // 图表3: 雷达图（5个象限：点击率、分享率、分享人数、拉新、召回）
+        function updateChart3(data) {
+            const maxValues = {
+                shareBtn: Math.max(...activities.map(a => a.shareBtn)),
+                newUsers: Math.max(...activities.map(a => a.newUsers)),
+                recall: Math.max(...activities.map(a => a.recall))
+            };
+
+            chart3.setOption({
+                tooltip: {},
+                legend: { data: data.map(a => a.name), bottom: 0 },
+                radar: {
+                    indicator: [
+                        { name: '点击率', max: 1 },
+                        { name: '分享率', max: 0.3 },
+                        { name: '分享人数', max: maxValues.shareBtn },
+                        { name: '拉新', max: maxValues.newUsers },
+                        { name: '召回', max: maxValues.recall }
+                    ]
+                },
+                series: [{
+                    type: 'radar',
+                    data: data.map(a => ({
+                        name: a.name,
+                        value: [a.viewClickRate, a.shareRate, a.shareBtn, a.newUsers, a.recall]
+                    }))
+                }]
+            });
+        }
+
+        // 打开新增表单
+        function openAddForm() {
+            modalOverlay.classList.add('show');
+            formModal.classList.add('show');
+        }
+
+        // 关闭表单
+        function closeForm() {
+            modalOverlay.classList.remove('show');
+            formModal.classList.remove('show');
+            editingIndex = -1;
+            document.getElementById('formTitle').textContent = '➕ 新增活动数据';
+            document.getElementById('btnSubmit').textContent = '确认添加';
+        }
+
+        // 对比选中活动
+        function compareSelected() {
+            const selected = Array.from(selectedActivities);
+            if (selected.length < 2) {
+                showToast('请至少选择2个活动进行对比');
+                return;
+            }
+
+            // 获取当前启用的指标
+            const activeKeys1 = Array.from(document.querySelectorAll('.tag-btn[data-chart="1"].active')).map(t => t.dataset.key);
+            const activeKeys2 = Array.from(document.querySelectorAll('.tag-btn[data-chart="2"].active')).map(t => t.dataset.key);
+            const allActiveKeys = [...activeKeys1, ...activeKeys2];
+
+            // 最后一个选中的活动显示在前（当前活动），其他作为基准
+            const current = activities[selected[selected.length - 1]];
+
+            const resultDiv = document.getElementById('compareResult');
+            let html = `<div class="compare-box"><div class="compare-section-title">📊 ${current.name} 相对其他活动的提升/下滑</div><div class="compare-grid">`;
+
+            for (let i = 0; i < selected.length - 1; i++) {
+                const base = activities[selected[i]];
+                const rows = generateCompareRows(current, base, allActiveKeys);
+                html += `<div class="compare-card">
+                    <div class="header">${current.name} <span>vs ${base.name}</span></div>
+                    ${rows}
+                </div>`;
+            }
+
+            html += `</div><div class="copy-hint">📋 可直接选中上方内容复制</div></div>`;
+            resultDiv.innerHTML = html;
+        }
+
+        // 生成对比行（当前活动 vs 基准活动）
+        function generateCompareRows(current, base, activeKeys) {
+            const metricsMap = {
+                'views': { label: '活动页浏览', currVal: current.views, baseVal: base.views, format: 'num' },
+                'clicks': { label: '活动页点击', currVal: current.clicks, baseVal: base.clicks, format: 'num' },
+                'shareBtn': { label: '分享按钮', currVal: current.shareBtn, baseVal: base.shareBtn, format: 'num' },
+                'sharePlatform': { label: '分享平台', currVal: current.sharePlatform, baseVal: base.sharePlatform, format: 'num' },
+                'webViews': { label: 'web页浏览', currVal: current.webViews, baseVal: base.webViews, format: 'num' },
+                'webClicks': { label: 'web页点击', currVal: current.webClicks, baseVal: base.webClicks, format: 'num' },
+                'newUsers': { label: '拉新人数', currVal: current.newUsers, baseVal: base.newUsers, format: 'num' },
+                'recall': { label: '召回人数', currVal: current.recall, baseVal: base.recall, format: 'num' },
+                'viewClickRate': { label: '点击率', currVal: current.viewClickRate, baseVal: base.viewClickRate, format: 'percent' },
+                'viewShareRate': { label: '分享率', currVal: current.viewShareRate, baseVal: base.viewShareRate, format: 'percent' },
+                'sharePlatformRate': { label: '平台率', currVal: current.sharePlatformRate, baseVal: base.sharePlatformRate, format: 'percent' },
+                'shareRate': { label: '分享完成率', currVal: current.shareRate, baseVal: base.shareRate, format: 'percent' },
+                'webViewRate': { label: 'web浏览率', currVal: current.webViewRate, baseVal: base.webViewRate, format: 'percent' },
+                'webClickRate': { label: 'web点击率', currVal: current.webClickRate, baseVal: base.webClickRate, format: 'percent' }
+            };
+
+            if (activeKeys.length === 0) {
+                return '<div class="compare-row"><span class="label">请先选择要对比的指标</span></div>';
+            }
+
+            return activeKeys.map(key => {
+                const m = metricsMap[key];
+                if (!m) return '';
+                const change = m.baseVal === 0 ? 0 : ((m.currVal - m.baseVal) / m.baseVal * 100);
+                const isPositive = change >= 0;
+                const changeClass = isPositive ? 'positive' : 'negative';
+                const changeSign = isPositive ? '+' : '';
+
+                let currStr, baseStr;
+                if (m.format === 'percent') {
+                    currStr = (m.currVal * 100).toFixed(1) + '%';
+                    baseStr = (m.baseVal * 100).toFixed(1) + '%';
+                } else {
+                    currStr = m.currVal.toLocaleString();
+                    baseStr = m.baseVal.toLocaleString();
+                }
+
+                return `<div class="compare-row">
+                    <span class="label">${m.label}</span>
+                    <span class="values">${currStr} vs ${baseStr}</span>
+                    <span class="change ${changeClass}">${changeSign}${change.toFixed(1)}%</span>
+                </div>`;
+            }).join('');
+        }
+
+        // Toast 提示
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // 清除选择
+        function clearSelection() {
+            selectedActivities.clear();
+            document.getElementById('compareResult').innerHTML = '';
+            renderActivityList();
+            updateCharts();
+        }
+
+        // 提交表单
+        function submitForm() {
+            const name = document.getElementById('formName').value.trim();
+            if (!name) {
+                alert('请输入活动名称');
+                return;
+            }
+
+            const views = parseInt(document.getElementById('formViews').value) || 0;
+            const clicks = parseInt(document.getElementById('formClicks').value) || 0;
+            const shareBtn = parseInt(document.getElementById('formShareBtn').value) || 0;
+            const sharePlatform = parseInt(document.getElementById('formSharePlatform').value) || 0;
+            const webViews = parseInt(document.getElementById('formWebViews').value) || 0;
+            const webClicks = parseInt(document.getElementById('formWebClicks').value) || 0;
+            const newUsers = parseInt(document.getElementById('formNewUsers').value) || 0;
+            const recall = parseInt(document.getElementById('formRecall').value) || 0;
+
+            const activityData = {
+                name,
+                type: document.getElementById('formType').value,
+                content: document.getElementById('formContent').value,
+                days: parseInt(document.getElementById('formDays').value) || 0,
+                views,
+                clicks,
+                viewClickRate: views ? clicks / views : 0,
+                shareBtn,
+                viewShareRate: views ? shareBtn / views : 0,
+                sharePlatform,
+                sharePlatformRate: shareBtn ? sharePlatform / shareBtn : 0,
+                shareRate: views ? sharePlatform / views : 0,
+                webViews,
+                webViewRate: sharePlatform ? webViews / sharePlatform : 0,
+                webClicks,
+                webClickRate: webViews ? webClicks / webViews : 0,
+                newUsers,
+                recall
+            };
+
+            if (editingIndex >= 0) {
+                activities[editingIndex] = activityData;
+                showToast('修改成功！');
+            } else {
+                activities.push(activityData);
+                showToast('添加成功！');
+            }
+
+            saveActivities();
+            renderActivityList();
+            closeForm();
+            clearFormInputs();
+        }
+
+        function clearFormInputs() {
+            document.querySelectorAll('#formModal input').forEach(i => i.value = '');
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <div class="toast" id="toast"></div>
+</body>
+</html>
